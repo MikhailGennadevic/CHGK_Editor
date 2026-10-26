@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Окружение и рантайм-данные (загруженные картинки, БД)
+.env
+backend/uploads/
+
+# Артефакты сборки фронтенда (tsc -b генерирует их рядом с исходниками)
+*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# Зависимости и прод-сборка (см. также frontend/.gitignore)
+node_modules/
+dist/

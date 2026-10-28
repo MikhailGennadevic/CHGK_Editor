@@ -6,12 +6,15 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from 'react'
 import { createTester, fetchTesters, handoutUrl, uploadHandout, type QuestionInput } from '../api'
+import { loadEditorDraft, saveEditorDraft } from '../editorStorage'
 import type { Question, Tester } from '../types'
 import TesterPicker from './TesterPicker'
 
 interface Props {
   /** Вопрос для редактирования; null — создание нового. */
   question: Question | null
+  /** Ключ черновика в sessionStorage (привязан к вопросу или пакету). */
+  draftKey: string
   onSubmit: (input: QuestionInput) => Promise<void>
   /** Удаление вопроса; передаётся только при редактировании. */
   onDelete?: () => Promise<void>
@@ -41,21 +44,33 @@ function saveWidth(w: number) {
   }
 }
 
-export default function QuestionEditorModal({ question, onSubmit, onDelete, onClose }: Props) {
-  const [text, setText] = useState(question?.text ?? '')
-  const [answer, setAnswer] = useState(question?.answer ?? '')
-  const [rejected, setRejected] = useState(question?.rejectedAnswer ?? '')
-  const [comment, setComment] = useState(question?.comment ?? '')
-  const [alts, setAlts] = useState<string[]>(question?.alternativeAnswers.map((a) => a.text) ?? [])
-  const [sources, setSources] = useState<string[]>(question?.sources.map((s) => s.text) ?? [])
-  const [testers, setTesters] = useState<Tester[]>(question?.testers ?? [])
+export default function QuestionEditorModal({ question, draftKey, onSubmit, onDelete, onClose }: Props) {
+  // Черновик после перезагрузки страницы (вкладку мог выгрузить браузер) приоритетнее
+  // начальных значений вопроса — восстанавливаем то, что пользователь успел ввести.
+  const [draft] = useState(() => loadEditorDraft(draftKey))
+  const [text, setText] = useState(draft?.text ?? question?.text ?? '')
+  const [answer, setAnswer] = useState(draft?.answer ?? question?.answer ?? '')
+  const [rejected, setRejected] = useState(draft?.rejected ?? question?.rejectedAnswer ?? '')
+  const [comment, setComment] = useState(draft?.comment ?? question?.comment ?? '')
+  const [alts, setAlts] = useState<string[]>(
+    draft?.alts ?? question?.alternativeAnswers.map((a) => a.text) ?? [],
+  )
+  const [sources, setSources] = useState<string[]>(
+    draft?.sources ?? question?.sources.map((s) => s.text) ?? [],
+  )
+  const [testers, setTesters] = useState<Tester[]>(draft?.testers ?? question?.testers ?? [])
   const [allTesters, setAllTesters] = useState<Tester[]>([])
-  const [handout, setHandout] = useState<string | null>(question?.handout ?? null)
+  const [handout, setHandout] = useState<string | null>(draft?.handout ?? question?.handout ?? null)
   const [uploading, setUploading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const saveTimer = useRef<number>()
+
+  // Пока окно открыто, держим черновик полей в sessionStorage.
+  useEffect(() => {
+    saveEditorDraft({ key: draftKey, text, answer, rejected, comment, alts, sources, testers, handout })
+  }, [draftKey, text, answer, rejected, comment, alts, sources, testers, handout])
 
   useEffect(() => () => window.clearTimeout(saveTimer.current), [])
 

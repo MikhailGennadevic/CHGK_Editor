@@ -6,6 +6,13 @@ import { createPackage, createQuestion, deletePackage, deleteQuestion, fetchPack
 import type { QuestionInput } from './api'
 import QuestionEditorModal from './components/QuestionEditorModal'
 import { QuestionEditorContext } from './context/questionEditor'
+import {
+  clearEditorState,
+  editorDraftKey,
+  loadEditorState,
+  saveEditorState,
+  type EditorState,
+} from './editorStorage'
 import type { Package, Question } from './types'
 
 export default function App() {
@@ -14,10 +21,21 @@ export default function App() {
   const routePackageId = parsePackagePath(path)
   const [error, setError] = useState<string | null>(null)
 
-  // Окно вопроса: создание (в пакет) или редактирование (существующий вопрос).
-  const [editor, setEditor] = useState<
-    { mode: 'create'; packageId: number } | { mode: 'edit'; question: Question } | null
-  >(null)
+  // Окно вопроса: создание (в пакет) или редактирование (существующего вопроса).
+  // Состояние и черновик полей переживают перезагрузку страницы (см. editorStorage):
+  // вкладку может выгрузить браузер («Экономия памяти») или перезагрузить Vite в dev-режиме.
+  const [editor, setEditor] = useState<EditorState | null>(loadEditorState)
+
+  useEffect(() => {
+    if (editor) saveEditorState(editor)
+    else clearEditorState()
+  }, [editor])
+
+  // Создание в пакете, который удалили, пока страница была загружена, — окно закрываем.
+  useEffect(() => {
+    if (packages && editor?.mode === 'create' && !packages.some((p) => p.id === editor.packageId))
+      setEditor(null)
+  }, [packages, editor])
 
   // Мягкое удаление на сервере, затем убираем вопрос с доски и сжимаем порядок в его пакете.
   const removeQuestion = useCallback(async (id: number) => {
@@ -164,8 +182,9 @@ export default function App() {
         {editor && (
           <QuestionEditorModal
             // key: при смене вопроса форма пересоздаётся с новыми начальными значениями.
-            key={editor.mode === 'edit' ? editor.question.id : `new-${editor.packageId}`}
+            key={editorDraftKey(editor)}
             question={editor.mode === 'edit' ? editor.question : null}
+            draftKey={editorDraftKey(editor)}
             onSubmit={submitEditor}
             onDelete={editor.mode === 'edit' ? deleteEditorQuestion : undefined}
             onClose={closeEditor}

@@ -162,6 +162,15 @@ export default function QuestionCard({
             ⚠
           </span>
         )}
+        {question.sources.length === 0 && (
+          <span
+            title="Источник не указан"
+            aria-label="Источник не указан"
+            className={`mt-0.5 shrink-0 ${t.body} text-amber-400`}
+          >
+            ✒
+          </span>
+        )}
         <CopyButton
           getText={() => question.text}
           title="Копировать текст вопроса"

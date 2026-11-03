@@ -1,5 +1,5 @@
 // Тонкий клиент к бэкенду. Все запросы идут через /api (см. vite proxy).
-import type { Package, Question, Tester } from './types'
+import type { DeletedPackage, Package, Question, Tester } from './types'
 
 async function request<T = void>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -62,12 +62,45 @@ export async function deletePackage(packageId: number): Promise<void> {
   await request(`/packages/${packageId}`, { method: 'DELETE' })
 }
 
+/** Мягко удалённые пакеты — для панели восстановления (GET /packages/deleted). */
+export async function fetchDeletedPackages(): Promise<DeletedPackage[]> {
+  const rows = await request<
+    Array<{
+      id: number
+      title: string
+      order: number
+      deleted_at: string
+      questions_count: number
+    }>
+  >('/packages/deleted')
+  return rows.map((p) => ({
+    id: p.id,
+    title: p.title,
+    order: p.order,
+    deletedAt: p.deleted_at,
+    questionsCount: p.questions_count,
+  }))
+}
+
+/** Восстановить мягко удалённый пакет вместе с вопросами (POST /packages/{id}/restore). */
+export async function restorePackage(packageId: number): Promise<void> {
+  await request(`/packages/${packageId}/restore`, { method: 'POST' })
+}
+
 /** Перенос колонки на позицию newOrder (PATCH /packages/{id}). */
 export async function movePackage(packageId: number, newOrder: number): Promise<void> {
   await request(`/packages/${packageId}`, {
     method: 'PATCH',
     body: JSON.stringify({ order: newOrder }),
   })
+}
+
+/** Переименование пакета (PATCH /packages/{id}). */
+export async function updatePackage(packageId: number, patch: { title: string }): Promise<Package> {
+  return toPackage(await request(`/packages/${packageId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  }))
 }
 
 /** Перенос вопроса в другой пакет на позицию newOrder (PATCH /questions/{id}/move). */

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Board from './components/Board'
+import DeletedPackages from './components/DeletedPackages'
 import PackagePage from './components/PackagePage'
 import { Link, parsePackagePath, usePath } from './router'
-import { createPackage, createQuestion, deletePackage, deleteQuestion, fetchPackages, updateQuestion } from './api'
+import { createPackage, createQuestion, deletePackage, deleteQuestion, fetchPackages, updatePackage, updateQuestion } from './api'
 import type { QuestionInput } from './api'
 import QuestionEditorModal from './components/QuestionEditorModal'
 import { QuestionEditorContext } from './context/questionEditor'
@@ -20,6 +21,8 @@ export default function App() {
   const path = usePath()
   const routePackageId = parsePackagePath(path)
   const [error, setError] = useState<string | null>(null)
+  // Панель «Удалённые пакеты» (восстановление).
+  const [deletedOpen, setDeletedOpen] = useState(false)
 
   // Окно вопроса: создание (в пакет) или редактирование (существующего вопроса).
   // Состояние и черновик полей переживают перезагрузку страницы (см. editorStorage):
@@ -125,6 +128,12 @@ export default function App() {
     [load],
   )
 
+  // Переименование пакета (с доски и со страницы пакета); ошибка бросается — UI остаётся в режиме ввода.
+  const renamePackage = useCallback(async (id: number, title: string) => {
+    const updated = await updatePackage(id, { title })
+    setPackages((prev) => (prev ?? []).map((p) => (p.id === id ? { ...p, title: updated.title } : p)))
+  }, [])
+
   return (
     <QuestionEditorContext.Provider value={editorActions}>
       <div className="flex h-full flex-col">
@@ -132,12 +141,22 @@ export default function App() {
           <Link href="/" className="text-lg font-bold text-slate-100 hover:text-sky-300">
             CHGK Editor
           </Link>
-          {packages && (
-            <span className="text-xs text-slate-400">
-              {packages.length} пакетов ·{' '}
-              {packages.reduce((sum, p) => sum + p.questions.length, 0)} вопросов
-            </span>
-          )}
+          <div className="flex items-center gap-4">
+            {packages && (
+              <span className="text-xs text-slate-400">
+                {packages.length} пакетов ·{' '}
+                {packages.reduce((sum, p) => sum + p.questions.length, 0)} вопросов
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => setDeletedOpen(true)}
+              title="Удалённые пакеты — восстановление"
+              className="text-xs text-slate-400 hover:text-slate-100"
+            >
+              Удалённые
+            </button>
+          </div>
         </header>
 
         <main className="min-h-0 flex-1">
@@ -173,6 +192,7 @@ export default function App() {
               onPackagesChange={setPackages}
               onAddPackage={handleAddPackage}
               onDeletePackage={handleDeletePackage}
+              onRenamePackage={renamePackage}
             />
           ) : (
             <div className="p-4 text-sm text-slate-400">Загрузка…</div>
@@ -189,6 +209,10 @@ export default function App() {
             onDelete={editor.mode === 'edit' ? deleteEditorQuestion : undefined}
             onClose={closeEditor}
           />
+        )}
+
+        {deletedOpen && (
+          <DeletedPackages onRestored={load} onClose={() => setDeletedOpen(false)} />
         )}
       </div>
     </QuestionEditorContext.Provider>

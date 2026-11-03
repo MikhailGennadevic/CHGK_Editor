@@ -1,5 +1,6 @@
 import type { HTMLAttributes, ReactNode, Ref } from 'react'
 import { Link } from '../router'
+import EditableTitle from './EditableTitle'
 
 interface PackageColumnProps {
   title: string
@@ -14,6 +15,8 @@ interface PackageColumnProps {
   handleRef?: Ref<HTMLButtonElement>
   /** Мягкое удаление пакета; не передаётся для «Неотсортированного». */
   onDelete?: () => void
+  /** Переименование по месту; не передаётся в DragOverlay. */
+  onRename?: (title: string) => Promise<void>
 }
 
 /** Презентационная колонка пакета: без dnd-хуков, чтобы её же можно было рисовать в DragOverlay. */
@@ -26,6 +29,7 @@ export default function PackageColumn({
   handleProps,
   handleRef,
   onDelete,
+  onRename,
 }: PackageColumnProps) {
   return (
     <section className="flex h-full w-96 shrink-0 flex-col rounded-xl bg-column">
@@ -44,15 +48,36 @@ export default function PackageColumn({
           </button>
           {/* Число вопросов — в скобках, не обрезается вместе с длинным названием */}
           <h2 className="flex min-w-0 items-baseline gap-1 text-sm font-semibold text-slate-100">
-            <span className="truncate">
-              {href ? (
-                <Link href={href} title="Открыть страницу пакета" className="hover:text-sky-300 hover:underline">
-                  {title}
-                </Link>
-              ) : (
-                title
-              )}
-            </span>
+            {onRename ? (
+              <EditableTitle
+                value={title}
+                onCommit={onRename}
+                className="min-w-0"
+                renderText={(v) =>
+                  href ? (
+                    <Link
+                      href={href}
+                      title="Открыть страницу пакета"
+                      className="hover:text-sky-300 hover:underline"
+                    >
+                      {v}
+                    </Link>
+                  ) : (
+                    v
+                  )
+                }
+              />
+            ) : (
+              <span className="truncate">
+                {href ? (
+                  <Link href={href} title="Открыть страницу пакета" className="hover:text-sky-300 hover:underline">
+                    {title}
+                  </Link>
+                ) : (
+                  title
+                )}
+              </span>
+            )}
             <span className="shrink-0 font-normal text-slate-400">({count})</span>
           </h2>
         </div>

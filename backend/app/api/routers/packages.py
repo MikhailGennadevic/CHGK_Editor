@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.deps import SessionDep
 from app.models import Package, Question
-from app.schemas.package import PackageCreate, PackageRead, PackageUpdate
+from app.schemas.package import DeletedPackageRead, PackageCreate, PackageRead, PackageUpdate
 from app.services.docx_export import build_package_docx
 
 router = APIRouter(prefix="/packages", tags=["packages"])
@@ -33,6 +33,40 @@ async def list_packages(session: SessionDep) -> list[Package]:
         .order_by(Package.order, Package.id)
     )
     return list(result.all())
+
+
+# Важно: объявляется ДО /{package_id}, иначе «deleted» попадёт в {package_id} и уйдёт в 422.
+@router.get("/deleted", response_model=list[DeletedPackageRead])
+async def list_deleted_packages(session: SessionDep) -> list[DeletedPackageRead]:
+    """Мягко удалённые пакеты — для панели восстановления."""
+    rows = (
+        await session.scalars(
+            select(Package)
+            .where(Package.deleted_at.is_not(None))
+            .order_by(Package.deleted_at.desc(), Package.id)
+        )
+    ).all()
+
+    out: list[DeletedPackageRead] = []
+    for package in rows:
+        # Вопросы, удалённые вместе с пакетом (тот же момент времени) — они и вернутся.
+        count = await session.scalar(
+            select(func.count(Question.id)).where(
+                Question.package_id == package.id,
+                Question.deleted_at == package.deleted_at,
+            )
+        )
+        out.append(
+            DeletedPackageRead(
+                id=package.id,
+                title=package.title,
+                order=package.order,
+                is_unsorted=package.is_unsorted,
+                deleted_at=package.deleted_at,
+                questions_count=count or 0,
+            )
+        )
+    return out
 
 
 @router.post("", response_model=PackageRead, status_code=status.HTTP_201_CREATED)
@@ -128,3 +162,32 @@ async def delete_package(package_id: int, session: SessionDep) -> None:
     ).all()
     for idx, row in enumerate(remaining):
         row.order = idx
+
+
+@router.post("/{package_id}/restore", response_model=PackageRead)
+async def restore_package(package_id: int, session: SessionDep) -> Package:
+    """Восстанавливает мягко удалённый пакет и вопросы, удалённые вместе с ним."""
+    package = await session.scalar(
+        select(Package).where(Package.id == package_id, Package.deleted_at.is_not(None))
+    )
+    if package is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Package not found")
+
+    deleted_at = package.deleted_at
+    # Возвращаем только вопросы, удалённые в момент удаления пакета;
+    # более ранние самостоятельные удаления остаются скрытыми.
+    await session.execute(
+        update(Question)
+        .where(Question.package_id == package_id, Question.deleted_at == deleted_at)
+        .values(deleted_at=None)
+    )
+    # Порядок на доске был «сжат» при удалении — ставим пакет в конец.
+    max_order = await session.scalar(
+        select(func.max(Package.order)).where(Package.deleted_at.is_(None))
+    )
+    package.order = (max_order + 1) if max_order is not None else 0
+    package.deleted_at = None
+    await session.flush()
+    # questions могли подтянуться пустыми до восстановления — перечитываем.
+    await session.refresh(package, attribute_names=["questions"])
+    return package

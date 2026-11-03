@@ -13,6 +13,8 @@ interface BoardProps {
   onPackagesChange: (next: Package[]) => void
   onAddPackage: (title: string) => Promise<void>
   onDeletePackage: (pkg: Package) => void
+  /** Переименование пакета; ошибка бросается — редактирование не закрывается. */
+  onRenamePackage: (id: number, title: string) => Promise<void>
 }
 
 /**
@@ -24,6 +26,7 @@ export default function Board({
   onPackagesChange,
   onAddPackage,
   onDeletePackage,
+  onRenamePackage,
 }: BoardProps) {
   const {
     sensors,
@@ -50,7 +53,12 @@ export default function Board({
             strategy={horizontalListSortingStrategy}
           >
             {packages.map((pkg) => (
-              <SortablePackageColumn key={pkg.id} pkg={pkg} onDelete={onDeletePackage} />
+              <SortablePackageColumn
+                key={pkg.id}
+                pkg={pkg}
+                onDelete={onDeletePackage}
+                onRename={onRenamePackage}
+              />
             ))}
           </SortableContext>
           <AddPackage onAdd={onAddPackage} />

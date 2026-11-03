@@ -11,10 +11,11 @@ import SortableQuestionCard from './SortableQuestionCard'
 interface Props {
   pkg: Package
   onDelete: (pkg: Package) => void
+  onRename: (id: number, title: string) => Promise<void>
 }
 
 /** Колонка, которую можно переставлять (за ручку) и в которую можно бросать вопросы. */
-export default function SortablePackageColumn({ pkg, onDelete }: Props) {
+export default function SortablePackageColumn({ pkg, onDelete, onRename }: Props) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: packageSortableId(pkg.id), data: { type: 'package' } })
 
@@ -37,6 +38,7 @@ export default function SortablePackageColumn({ pkg, onDelete }: Props) {
         handleRef={setActivatorNodeRef}
         handleProps={{ ...attributes, ...listeners }}
         onDelete={pkg.isUnsorted ? undefined : () => onDelete(pkg)}
+        onRename={(title) => onRename(pkg.id, title)}
       >
         <div ref={setDropRef} className="flex-1 space-y-2 overflow-y-auto p-2">
           <SortableContext

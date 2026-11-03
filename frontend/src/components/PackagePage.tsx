@@ -4,12 +4,13 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Link } from '../router'
 import { containerId, useBoardDnd } from '../hooks/useBoardDnd'
 import { useQuestionEditor } from '../context/questionEditor'
-import { addTestersToQuestions, createTester, fetchTesters, packageDocxUrl } from '../api'
+import { addTestersToQuestions, createTester, fetchTesters, packageDocxUrl, updatePackage } from '../api'
 import type { Package, Tester } from '../types'
 import QuestionCard from './QuestionCard'
 import SortableQuestionCard from './SortableQuestionCard'
 import TesterPicker from './TesterPicker'
 import CopyButton from './CopyButton'
+import EditableTitle from './EditableTitle'
 
 interface Props {
   pkg: Package
@@ -116,6 +117,12 @@ export default function PackagePage({ pkg, packages, onPackagesChange }: Props) 
   const { sensors, collisionDetection, activeQuestion, handleDragStart, handleDragEnd, handleDragCancel } =
     useBoardDnd(packages, onPackagesChange)
 
+  // Переименование пакета; ошибка бросается — EditableTitle остаётся в режиме ввода.
+  const rename = async (title: string) => {
+    const updated = await updatePackage(pkg.id, { title })
+    onPackagesChange(packages.map((p) => (p.id === pkg.id ? { ...p, title: updated.title } : p)))
+  }
+
   // Одна и та же кнопка сверху и снизу списка — длинный пакет не нужно прокручивать до конца.
   const addButton = (
     <button
@@ -136,7 +143,7 @@ export default function PackagePage({ pkg, packages, onPackagesChange }: Props) 
 
         <div className="flex items-center justify-between gap-3">
           <h2 className="flex min-w-0 items-baseline gap-2 text-2xl font-bold text-slate-100">
-            <span className="truncate">{pkg.title}</span>
+            <EditableTitle value={pkg.title} onCommit={rename} className="min-w-0" />
             <span className="shrink-0 font-normal text-slate-400">({pkg.questions.length})</span>
           </h2>
           <div className="flex flex-wrap items-center justify-end gap-2">

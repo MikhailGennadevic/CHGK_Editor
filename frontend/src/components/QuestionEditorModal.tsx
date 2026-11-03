@@ -55,9 +55,11 @@ export default function QuestionEditorModal({ question, draftKey, onSubmit, onDe
   const [alts, setAlts] = useState<string[]>(
     draft?.alts ?? question?.alternativeAnswers.map((a) => a.text) ?? [],
   )
-  const [sources, setSources] = useState<string[]>(
-    draft?.sources ?? question?.sources.map((s) => s.text) ?? [],
-  )
+  const [sources, setSources] = useState<string[]>(() => {
+    const s = draft?.sources ?? question?.sources.map((x) => x.text) ?? []
+    // Хотя бы одна строка всегда: пустой пакет источников — это не «скрытый ввод», а готовое поле.
+    return s.length > 0 ? s : ['']
+  })
   const [testers, setTesters] = useState<Tester[]>(draft?.testers ?? question?.testers ?? [])
   const [allTesters, setAllTesters] = useState<Tester[]>([])
   const [handout, setHandout] = useState<string | null>(draft?.handout ?? question?.handout ?? null)
@@ -301,7 +303,13 @@ export default function QuestionEditorModal({ question, draftKey, onSubmit, onDe
                     onChange={(e) => setSources(sources.map((s, j) => (j === i ? e.target.value : s)))}
                     className={inputCls}
                   />
-                  <RemoveButton onClick={() => setSources(sources.filter((_, j) => j !== i))} />
+                  <RemoveButton
+                    onClick={() => {
+                      const next = sources.filter((_, j) => j !== i)
+                      // Убрали последнюю строку — оставляем одну пустую, чтобы ввод был доступен всегда.
+                      setSources(next.length > 0 ? next : [''])
+                    }}
+                  />
                 </div>
               ))}
               <AddButton onClick={() => setSources([...sources, ''])}>

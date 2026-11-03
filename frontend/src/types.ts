@@ -40,3 +40,14 @@ export interface Package {
   isUnsorted: boolean
   questions: Question[]
 }
+
+/** Мягко удалённый пакет — строка панели восстановления. */
+export interface DeletedPackage {
+  id: number
+  title: string
+  order: number
+  /** Когда удалён (ISO-строка). */
+  deletedAt: string
+  /** Сколько вопросов вернётся вместе с пакетом. */
+  questionsCount: number
+}

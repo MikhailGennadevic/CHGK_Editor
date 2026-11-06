@@ -55,9 +55,11 @@ def _add_multiline(paragraph, text: str) -> None:
         paragraph.add_run(line)
 
 
-def _add_labeled(doc, label: str, text: str) -> None:
+def _add_labeled(doc, label: str, text: str, *, bold_label: bool = False) -> None:
     paragraph = doc.add_paragraph()
-    paragraph.add_run(f"{label}: {text}")
+    label_run = paragraph.add_run(f"{label}:")
+    label_run.bold = bold_label
+    paragraph.add_run(f" {text}")
 
 
 def _add_handout(doc, path: Path) -> None:
@@ -117,24 +119,27 @@ def build_package_docx(package: Package) -> BytesIO:
 
         _add_multiline(doc.add_paragraph(), question.text)
 
-        _add_labeled(doc, "Ответ", _sentence(question.answer))
+        _add_labeled(doc, "Ответ", _sentence(question.answer), bold_label=True)
         if question.alternative_answers:
             _add_labeled(
                 doc,
                 "Зачёт",
                 _sentence(", ".join(a.text for a in question.alternative_answers)),
+                bold_label=True,
             )
         if question.rejected_answer:
-            _add_labeled(doc, "Незачёт", _sentence(question.rejected_answer))
+            _add_labeled(doc, "Незачёт", _sentence(question.rejected_answer), bold_label=True)
         if question.comment:
             _add_labeled(doc, "Комментарий", _sentence(question.comment))
 
         if question.sources:
             paragraph = doc.add_paragraph()
             if len(question.sources) == 1:
-                paragraph.add_run(f"Источник: {question.sources[0].text.strip()}")
+                paragraph.add_run("Источник:").bold = True
+                paragraph.add_run(f" {question.sources[0].text.strip()}")
             else:
-                paragraph.add_run("Источники: ")
+                paragraph.add_run("Источники:").bold = True
+                paragraph.add_run(" ")
                 for i, source in enumerate(question.sources, start=1):
                     if i > 1:
                         paragraph.add_run().add_break()

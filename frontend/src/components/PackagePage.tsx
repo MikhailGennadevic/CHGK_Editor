@@ -4,13 +4,14 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Link } from '../router'
 import { containerId, useBoardDnd } from '../hooks/useBoardDnd'
 import { useQuestionEditor } from '../context/questionEditor'
-import { addTestersToQuestions, createTester, fetchTesters, packageDocxUrl, updatePackage } from '../api'
-import type { Package, Tester } from '../types'
+import { addTestersToQuestions, createTester, fetchTesters, moveQuestion, packageDocxUrl, updatePackage } from '../api'
+import type { Package, Question, Tester } from '../types'
 import QuestionCard from './QuestionCard'
 import SortableQuestionCard from './SortableQuestionCard'
 import TesterPicker from './TesterPicker'
 import CopyButton from './CopyButton'
 import EditableTitle from './EditableTitle'
+import MoveQuestionDialog from './MoveQuestionDialog'
 
 interface Props {
   pkg: Package
@@ -24,6 +25,8 @@ export default function PackagePage({ pkg, packages, onPackagesChange }: Props) 
   const { openCreate } = useQuestionEditor()
   const [allTesters, setAllTesters] = useState<Tester[]>([])
   const [marked, setMarked] = useMarkedTesters()
+  // Перенос вопроса в другой пакет: диалог с выбором цели (в конец целевого пакета).
+  const [moving, setMoving] = useState<Question | null>(null)
   useEffect(() => {
     fetchTesters().then(setAllTesters).catch((err) => console.error('fetchTesters failed', err))
   }, [])
@@ -121,6 +124,23 @@ export default function PackagePage({ pkg, packages, onPackagesChange }: Props) 
   const rename = async (title: string) => {
     const updated = await updatePackage(pkg.id, { title })
     onPackagesChange(packages.map((p) => (p.id === pkg.id ? { ...p, title: updated.title } : p)))
+  }
+
+  // Перенос вопроса в конец целевого пакета; ошибка бросается — диалог покажет сообщение.
+  const moveQuestionTo = async (target: Package) => {
+    if (!moving) return
+    const q = moving
+    await moveQuestion(q.id, target.id, target.questions.length)
+    onPackagesChange(
+      packages.map((p) => {
+        if (p.id === pkg.id)
+          return { ...p, questions: p.questions.filter((x) => x.id !== q.id).map((x, i) => ({ ...x, order: i })) }
+        if (p.id === target.id)
+          return { ...p, questions: [...p.questions, { ...q, packageId: target.id, order: p.questions.length }] }
+        return p
+      }),
+    )
+    setMoving(null)
   }
 
   // Одна и та же кнопка сверху и снизу списка — длинный пакет не нужно прокручивать до конца.
@@ -246,6 +266,7 @@ export default function PackagePage({ pkg, packages, onPackagesChange }: Props) 
             onToggleSelect={toggleSelect}
             openAnswers={openAnswers}
             onToggleAnswer={toggleAnswer}
+            onMoveQuestion={packages.some((p) => p.id !== pkg.id) ? setMoving : undefined}
           />
           <DragOverlay>
             {activeQuestion ? (
@@ -263,6 +284,15 @@ export default function PackagePage({ pkg, packages, onPackagesChange }: Props) 
 
         {addButton}
       </div>
+
+      {moving && (
+        <MoveQuestionDialog
+          question={moving}
+          targets={packages.filter((p) => p.id !== pkg.id)}
+          onMove={moveQuestionTo}
+          onClose={() => setMoving(null)}
+        />
+      )}
 
       {/* Плавающая навигация: к началу/концу пакета и к вопросам с номерами, кратными 6 */}
       {pkg.questions.length > 0 && (
@@ -316,6 +346,7 @@ function QuestionList({
   onToggleSelect,
   openAnswers,
   onToggleAnswer,
+  onMoveQuestion,
 }: {
   pkg: Package
   marked: Tester[]
@@ -323,6 +354,8 @@ function QuestionList({
   onToggleSelect: (questionId: number) => void
   openAnswers: Set<number>
   onToggleAnswer: (questionId: number) => void
+  /** Открыть диалог переноса; без него кнопки ⇄ на карточках нет. */
+  onMoveQuestion?: (question: Question) => void
 }) {
   const { setNodeRef } = useDroppable({ id: containerId(pkg.id) })
 
@@ -349,6 +382,7 @@ function QuestionList({
             onToggleSelect={onToggleSelect}
             answerOpen={openAnswers.has(q.id)}
             onToggleAnswer={() => onToggleAnswer(q.id)}
+            onMove={onMoveQuestion ? () => onMoveQuestion(q) : undefined}
           />
         ))}
       </SortableContext>

@@ -22,6 +22,8 @@ interface QuestionCardProps {
   /** Управляемая видимость ответа (страница пакета); без неё видимость решает локальный стейт. */
   answerOpen?: boolean
   onToggleAnswer?: () => void
+  /** Перенос в другой пакет (страница пакета); без неё кнопки переноса нет. */
+  onMove?: () => void
 }
 
 /** Всё, кроме текста вопроса: ответ, зачёты, незачёт, комментарий и источники. */
@@ -69,6 +71,7 @@ export default function QuestionCard({
   onToggleSelect,
   answerOpen,
   onToggleAnswer,
+  onMove,
 }: QuestionCardProps) {
   const [localAnswer, setLocalAnswer] = useState(false)
   const [testersVisible, setTestersVisible] = useState(false)
@@ -187,6 +190,17 @@ export default function QuestionCard({
         >
           ✎
         </button>
+        {onMove && (
+          <button
+            type="button"
+            title="Перенести в другой пакет"
+            aria-label="Перенести в другой пакет"
+            onClick={onMove}
+            className={`shrink-0 ${t.body} text-slate-500 hover:text-slate-100`}
+          >
+            ⇄
+          </button>
+        )}
         <button
           type="button"
           title="Удалить вопрос"

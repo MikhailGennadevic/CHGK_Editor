@@ -15,6 +15,7 @@ interface SortableQuestionCardProps {
   onToggleSelect?: (questionId: number) => void
   answerOpen?: boolean
   onToggleAnswer?: () => void
+  onMove?: () => void
 }
 
 /**
@@ -31,6 +32,7 @@ function SortableQuestionCardImpl({
   onToggleSelect,
   answerOpen,
   onToggleAnswer,
+  onMove,
 }: SortableQuestionCardProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: question.id,
@@ -61,6 +63,7 @@ function SortableQuestionCardImpl({
         onToggleSelect={onToggleSelect}
         answerOpen={answerOpen}
         onToggleAnswer={onToggleAnswer}
+        onMove={onMove}
         handleRef={large ? setActivatorNodeRef : undefined}
         handleProps={large ? { ...attributes, ...listeners } : undefined}
       />

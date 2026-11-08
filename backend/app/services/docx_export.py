@@ -130,7 +130,7 @@ def build_package_docx(package: Package) -> BytesIO:
         if question.rejected_answer:
             _add_labeled(doc, "Незачёт", _sentence(question.rejected_answer), bold_label=True)
         if question.comment:
-            _add_labeled(doc, "Комментарий", _sentence(question.comment))
+            _add_labeled(doc, "Комментарий", _sentence(question.comment), bold_label=True)
 
         if question.sources:
             paragraph = doc.add_paragraph()
